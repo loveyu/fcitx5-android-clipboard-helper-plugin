@@ -91,11 +91,15 @@ object HttpSender {
 
             if (code in 200..299) {
                 Log.i(TAG, "POST success, HTTP $code")
+                SendLog.record(appContext, true, "HTTP $code")
             } else {
                 Log.e(TAG, "POST failed: HTTP $code, url=$url")
+                SendLog.record(appContext, false, "HTTP $code")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "POST failed: ${e.javaClass.simpleName}: ${e.message}, url=$url")
+            val msg = "${e.javaClass.simpleName}: ${e.message}"
+            Log.e(TAG, "POST failed: $msg, url=$url")
+            SendLog.record(appContext, false, msg)
         }
     }
 

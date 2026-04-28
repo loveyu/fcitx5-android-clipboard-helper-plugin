@@ -106,4 +106,18 @@ class PluginActivity : Activity() {
             Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        refreshLog()
+    }
+
+    private fun refreshLog() {
+        val entries = SendLog.entries(this)
+        if (entries.isEmpty()) {
+            binding.logText.text = getString(R.string.no_logs)
+        } else {
+            binding.logText.text = entries.joinToString("\n") { SendLog.format(it) }
+        }
+    }
 }
