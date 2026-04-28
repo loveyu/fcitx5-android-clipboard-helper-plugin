@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<plugin>
+    <apiVersion>0.1</apiVersion>
+    <domain>clipboard</domain>
+    <description>小企鹅输入法（剪贴板助手插件）</description>
+    <hasService>true</hasService>
+</plugin>

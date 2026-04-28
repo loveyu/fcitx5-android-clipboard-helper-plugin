@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:name="org.fcitx.fcitx5.android.plugin.clipboard.PluginApplication"
+        android:label="@string/app_name"
+        android:theme="@android:style/Theme.DeviceDefault.Light">
+
+        <meta-data
+            android:name="org.fcitx.fcitx5.android.plugin"
+            android:resource="@xml/plugin" />
+
+        <activity
+            android:name="org.fcitx.fcitx5.android.plugin.clipboard.PluginActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.fcitx.fcitx5.android.plugin.MANIFEST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name="org.fcitx.fcitx5.android.plugin.clipboard.MainService"
+            android:exported="true"
+            android:permission="org.fcitx.fcitx5.android.permission.PLUGIN">
+            <intent-filter>
+                <action android:name="org.fcitx.fcitx5.android.plugin.SERVICE" />
+            </intent-filter>
+        </service>
+
+    </application>
+
+</manifest>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">小企鹅输入法（剪贴板助手插件）</string>
+    <string name="settings_title">剪贴板助手设置</string>
+    <string name="url_label">HTTP POST 地址</string>
+    <string name="url_hint">https://example.com/clipboard</string>
+    <string name="ignore_cert_label">忽略 SSL 证书验证</string>
+    <string name="save_settings">保存设置</string>
+    <string name="settings_saved">设置已保存</string>
+    <string name="url_empty_warning">地址不能为空</string>
+    <string name="recent_logs_title">最近发送记录</string>
+    <string name="no_logs">暂无记录</string>
+</resources>
