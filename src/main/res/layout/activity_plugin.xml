@@ -62,21 +62,5 @@
             android:layout_marginBottom="24dp"
             android:text="@string/save_settings" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/recent_logs_title"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:paddingBottom="8dp" />
-
-        <TextView
-            android:id="@+id/log_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/no_logs"
-            android:textSize="12sp"
-            android:fontFamily="monospace" />
-
     </LinearLayout>
 </ScrollView>
