@@ -5,6 +5,13 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.2.10"
 }
 
+// Load signing properties once at the top level so both signingConfigs and buildTypes can use them.
+val signingProps = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+val hasReleaseKey = System.getenv("SIGNING_STORE_FILE") != null ||
+        signingProps.getProperty("signing.storeFile") != null
+
 android {
     namespace = "org.fcitx.fcitx5.android.plugin.clipboard"
     compileSdk = 35
@@ -52,14 +59,11 @@ android {
 
     signingConfigs {
         create("release") {
-            val props = Properties()
-            rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { props.load(it) }
-
-            storeFile = (System.getenv("SIGNING_STORE_FILE") ?: props.getProperty("signing.storeFile"))?.let { file(it) }
+            storeFile = (System.getenv("SIGNING_STORE_FILE") ?: signingProps.getProperty("signing.storeFile"))?.let { file(it) }
             storeType = "PKCS12"
-            storePassword = System.getenv("SIGNING_STORE_PASSWORD") ?: props.getProperty("signing.storePassword") ?: ""
-            keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: props.getProperty("signing.keyAlias") ?: "fcitx5-android-clipboard-plugin"
-            keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: props.getProperty("signing.keyPassword") ?: storePassword
+            storePassword = System.getenv("SIGNING_STORE_PASSWORD") ?: signingProps.getProperty("signing.storePassword") ?: ""
+            keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: signingProps.getProperty("signing.keyAlias") ?: "fcitx5-android-clipboard-plugin"
+            keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: signingProps.getProperty("signing.keyPassword") ?: storePassword
         }
     }
 
@@ -73,7 +77,10 @@ android {
             manifestPlaceholders["fcitxAppId"] = "org.fcitx.fcitx5.android"
             buildConfigField("String", "FCITX_APP_ID", "\"org.fcitx.fcitx5.android\"")
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            // Use the release keystore when configured; otherwise fall back to the debug keystore
+            // so a locally-built release APK can still be tested alongside a debug fcitx5-android
+            // (both would then share the standard Android debug certificate).
+            signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 }

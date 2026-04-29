@@ -94,11 +94,17 @@ class MainService : android.app.Service() {
 
     override fun onBind(intent: Intent): IBinder {
         Log.d(TAG, "Bound by fcitx5-android")
-        bindService(
-            Intent("$FCITX_APP_ID.IPC").setPackage(FCITX_APP_ID),
-            connection,
-            Context.BIND_AUTO_CREATE
-        )
+        val bound = try {
+            bindService(
+                Intent("$FCITX_APP_ID.IPC").setPackage(FCITX_APP_ID),
+                connection,
+                Context.BIND_AUTO_CREATE
+            )
+        } catch (e: SecurityException) {
+            Log.e(TAG, "IPC bind denied — signing certificate mismatch? ${e.message}")
+            false
+        }
+        if (!bound) Log.w(TAG, "bindService returned false — IPC service unavailable or permission denied")
         return Messenger(Handler(Looper.getMainLooper())).binder
     }
 
@@ -115,14 +121,6 @@ class MainService : android.app.Service() {
 class PluginActivity : Activity() {
 
     private lateinit var binding: ActivityPluginBinding
-
-    private val refreshHandler = Handler(Looper.getMainLooper())
-    private val refreshRunnable = object : Runnable {
-        override fun run() {
-            refreshDynamicState()
-            refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS)
-        }
-    }
 
     /** Guards background logcat threads from updating a paused/destroyed activity. */
     @Volatile
@@ -168,21 +166,20 @@ class PluginActivity : Activity() {
             Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
         }
 
-        binding.refreshLogButton.setOnClickListener { refreshLogcat() }
+        binding.refreshLogButton.setOnClickListener { refreshDynamicState() }
     }
 
     override fun onResume() {
         super.onResume()
         isActive = true
         PreferenceStore.addOnChangeListener(this, prefsListener)
-        refreshRunnable.run()
+        refreshDynamicState()
     }
 
     override fun onPause() {
         super.onPause()
         isActive = false
         PreferenceStore.removeOnChangeListener(this, prefsListener)
-        refreshHandler.removeCallbacks(refreshRunnable)
     }
 
     private fun refreshDynamicState() {
@@ -237,10 +234,6 @@ class PluginActivity : Activity() {
         if (!isHttps) {
             binding.ignoreCertCheckbox.isChecked = false
         }
-    }
-
-    companion object {
-        private const val REFRESH_INTERVAL_MS = 3000L
     }
 }
 
