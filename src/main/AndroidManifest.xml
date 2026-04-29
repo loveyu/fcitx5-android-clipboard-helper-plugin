@@ -3,7 +3,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -28,7 +28,7 @@
         <service
             android:name="org.fcitx.fcitx5.android.plugin.clipboard.MainService"
             android:exported="true"
-            android:foregroundServiceType="dataSync"
+            android:foregroundServiceType="remoteMessaging"
             android:permission="org.fcitx.fcitx5.android.permission.PLUGIN">
             <intent-filter>
                 <action android:name="org.fcitx.fcitx5.android.plugin.SERVICE" />
