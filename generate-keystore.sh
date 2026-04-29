@@ -17,8 +17,8 @@ if ! command -v keytool &> /dev/null; then
 fi
 
 # 交互式输入
-read -rp "请输入密钥别名 (默认: mfca): " KEY_ALIAS
-KEY_ALIAS=${KEY_ALIAS:-mfca}
+read -rp "请输入密钥别名 (默认: fachp): " KEY_ALIAS
+KEY_ALIAS=${KEY_ALIAS:-fachp}
 
 read -rsp "请输入密钥库密码: " STORE_PASSWORD
 echo ""
@@ -39,12 +39,12 @@ VALIDITY=${VALIDITY:-10000}
 
 echo ""
 echo "=== 填写证书信息 ==="
-read -rp "您的姓名或组织 (CN，默认: mfca): " CN
-CN=${CN:-mfca}
-read -rp "组织单位 (OU，默认: mfca): " OU
-OU=${OU:-mfca}
-read -rp "组织 (O，默认: mfca): " O
-O=${O:-mfca}
+read -rp "您的姓名或组织 (CN，默认: fachp): " CN
+CN=${CN:-fachp}
+read -rp "组织单位 (OU，默认: fachp): " OU
+OU=${OU:-fachp}
+read -rp "组织 (O，默认: fachp): " O
+O=${O:-fachp}
 read -rp "城市 (L，默认: Beijing): " L
 L=${L:-Beijing}
 read -rp "省份 (ST，默认: Beijing): " ST

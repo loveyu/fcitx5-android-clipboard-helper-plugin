@@ -33,3 +33,6 @@ google-services.json
 # Android Profiling
 *.hprof
 gradle/gradle-daemon-jvm.properties
+# Signing
+release.keystore
+keystore.properties
