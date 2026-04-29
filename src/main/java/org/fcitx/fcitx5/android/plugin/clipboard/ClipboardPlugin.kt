@@ -96,7 +96,7 @@ class MainService : Service() {
             startForeground(
                 FOREGROUND_NOTIFICATION_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
             )
         } else {
             startForeground(FOREGROUND_NOTIFICATION_ID, notification)
@@ -131,6 +131,7 @@ class MainService : Service() {
             val url = PreferenceStore.getUrl(this)
             if (url.isBlank()) return
 
+            PreferenceStore.saveLastClipboard(this, text)
             val payload = HttpSender.buildPayload(text)
             HttpSender.enqueue(payload)
         } catch (e: Exception) {
@@ -149,9 +150,14 @@ class PluginActivity : Activity() {
         binding = ActivityPluginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.urlInput.setText(PreferenceStore.getUrl(this))
+        val savedUrl = PreferenceStore.getUrl(this)
+        binding.currentUrlText.text = savedUrl.ifEmpty { getString(R.string.url_not_set) }
+        binding.urlInput.setText(savedUrl)
         binding.ignoreCertCheckbox.isChecked = PreferenceStore.getIgnoreCert(this)
         updateSslLayoutVisibility(binding.urlInput.text?.toString() ?: "")
+
+        val lastClip = PreferenceStore.getLastClipboard(this)
+        binding.clipboardPreview.text = lastClip.ifEmpty { getString(R.string.clipboard_empty) }
 
         binding.urlInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -169,6 +175,7 @@ class PluginActivity : Activity() {
             }
             val ignoreCert = binding.ignoreCertCheckbox.isChecked
             PreferenceStore.save(this, url, ignoreCert)
+            binding.currentUrlText.text = url
             Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
         }
     }

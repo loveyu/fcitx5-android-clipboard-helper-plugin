@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">小企鹅输入法（剪贴板助手插件）</string>
-    <string name="settings_title">剪贴板助手设置</string>
-    <string name="url_label">HTTP POST 地址</string>
+    <string name="app_subtitle">监听剪贴板变动并将内容转发至指定地址</string>
+    <string name="settings_title">POST 地址设置</string>
+    <string name="current_url_label">当前已保存的地址</string>
+    <string name="url_not_set">（未设置）</string>
+    <string name="url_label">修改地址</string>
     <string name="url_hint">https://example.com/clipboard</string>
     <string name="ignore_cert_label">忽略 SSL 证书验证</string>
     <string name="save_settings">保存设置</string>
     <string name="settings_saved">设置已保存</string>
     <string name="url_empty_warning">地址不能为空</string>
+    <string name="last_clipboard_title">上次读取的剪贴板内容</string>
+    <string name="clipboard_empty">（暂无记录）</string>
     <string name="notification_channel_name">剪贴板监听服务</string>
     <string name="service_notification_title">剪贴板助手正在运行</string>
+    <string name="footer_text">仅在小企鹅输入法启动插件服务后生效</string>
 </resources>
