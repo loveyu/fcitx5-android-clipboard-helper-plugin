@@ -10,4 +10,6 @@
     <string name="url_empty_warning">地址不能为空</string>
     <string name="recent_logs_title">最近发送记录</string>
     <string name="no_logs">暂无记录</string>
+    <string name="notification_channel_name">剪贴板监听服务</string>
+    <string name="service_notification_title">剪贴板助手正在运行</string>
 </resources>

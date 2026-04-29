@@ -30,14 +30,18 @@
             android:layout_height="wrap_content"
             android:hint="@string/url_hint"
             android:inputType="textUri"
+            android:maxLines="4"
+            android:scrollHorizontally="false"
             android:paddingBottom="8dp" />
 
         <LinearLayout
+            android:id="@+id/ignore_cert_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingBottom="16dp">
+            android:paddingBottom="16dp"
+            android:visibility="gone">
 
             <CheckBox
                 android:id="@+id/ignore_cert_checkbox"
