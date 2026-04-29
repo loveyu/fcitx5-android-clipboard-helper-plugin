@@ -23,6 +23,7 @@ import org.fcitx.fcitx5.android.common.ipc.IFcitxRemoteService
 import org.fcitx.fcitx5.android.plugin.clipboard.databinding.ActivityPluginBinding
 
 private const val TAG = "ClipboardPlugin"
+private const val ACTION_START_KEEPALIVE = "org.fcitx.fcitx5.android.plugin.clipboard.action.START_KEEPALIVE"
 private const val STATUS_COLOR_NEUTRAL = "#757575"
 private const val STATUS_COLOR_INFO = "#1565C0"
 private const val STATUS_COLOR_SUCCESS = "#2E7D32"
@@ -85,6 +86,11 @@ class MainService : android.app.Service() {
     }
 
     private var remoteService: IFcitxRemoteService? = null
+    private var keepAlive = false
+    private var fcitxBound = false
+    private var remoteBinding = false
+    private var remoteConnectionBound = false
+    private val messenger by lazy { Messenger(Handler(Looper.getMainLooper())) }
 
     private val transformer = object : IClipboardEntryTransformer.Stub() {
         override fun getPriority(): Int = 0
@@ -100,22 +106,76 @@ class MainService : android.app.Service() {
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
+            remoteBinding = false
+            remoteConnectionBound = true
             remoteService = IFcitxRemoteService.Stub.asInterface(service)
-            remoteService?.registerClipboardEntryTransformer(transformer)
-            setStatus(Status.CONNECTED)
-            Log.d(TAG, "Connected to fcitx5-android, transformer registered")
+            try {
+                remoteService?.registerClipboardEntryTransformer(transformer)
+                setStatus(Status.CONNECTED)
+                Log.d(TAG, "Connected to fcitx5-android, transformer registered")
+            } catch (e: SecurityException) {
+                setStatus(Status.IPC_FAILED, "IPC 权限被拒绝，请确认插件与 fcitx5-android 使用相同签名证书")
+                Log.e(TAG, "Transformer registration denied — signing certificate mismatch? ${e.message}")
+                disconnectRemoteService()
+            } catch (e: Exception) {
+                val reason = e.message ?: e.javaClass.simpleName
+                setStatus(Status.IPC_FAILED, reason)
+                Log.e(TAG, "Transformer registration failed: $reason")
+                disconnectRemoteService()
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
+            remoteBinding = false
+            remoteConnectionBound = false
             remoteService = null
-            setStatus(Status.DISCONNECTED)
+            setStatus(if (keepAlive || fcitxBound) Status.DISCONNECTED else Status.IDLE)
             Log.d(TAG, "Disconnected from fcitx5-android")
         }
     }
 
     override fun onBind(intent: Intent): IBinder {
+        fcitxBound = true
         Log.d(TAG, "Bound by fcitx5-android")
+        ensureRemoteConnection("bound by fcitx5-android")
+        return messenger.binder
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent == null || intent.action == ACTION_START_KEEPALIVE) {
+            keepAlive = true
+            Log.d(TAG, "Keep-alive start requested from plugin settings")
+            ensureRemoteConnection("started from plugin settings")
+        }
+        return START_STICKY
+    }
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        fcitxBound = false
+        if (!keepAlive) {
+            disconnectRemoteService()
+            setStatus(Status.IDLE)
+            stopSelf()
+        }
+        Log.d(TAG, "Unbound from fcitx5-android plugin connection")
+        return false
+    }
+
+    override fun onDestroy() {
+        disconnectRemoteService()
+        if (!keepAlive && !fcitxBound) {
+            setStatus(Status.IDLE)
+        }
+        super.onDestroy()
+    }
+
+    private fun ensureRemoteConnection(source: String) {
+        if (remoteService != null || remoteBinding) {
+            Log.d(TAG, "Skip remote bind ($source): already connected or connecting")
+            return
+        }
         try {
+            remoteBinding = true
             val bound = bindService(
                 Intent("$FCITX_APP_ID.IPC").setPackage(FCITX_APP_ID),
                 connection,
@@ -123,24 +183,27 @@ class MainService : android.app.Service() {
             )
             if (bound) {
                 setStatus(Status.CONNECTING)
+                Log.d(TAG, "Binding to fcitx5-android IPC ($source)")
             } else {
+                remoteBinding = false
                 setStatus(Status.IPC_FAILED, "bindService 返回 false，请确认 fcitx5-android 已安装并运行")
-                Log.w(TAG, "bindService returned false — IPC service unavailable or permission denied")
+                Log.w(TAG, "bindService returned false ($source) — IPC service unavailable or permission denied")
             }
         } catch (e: SecurityException) {
+            remoteBinding = false
             setStatus(Status.IPC_FAILED, "IPC 权限被拒绝，请确认插件与 fcitx5-android 使用相同签名证书")
-            Log.e(TAG, "IPC bind denied — signing certificate mismatch? ${e.message}")
+            Log.e(TAG, "IPC bind denied ($source) — signing certificate mismatch? ${e.message}")
         }
-        return Messenger(Handler(Looper.getMainLooper())).binder
     }
 
-    override fun onUnbind(intent: Intent?): Boolean {
+    private fun disconnectRemoteService() {
         runCatching { remoteService?.unregisterClipboardEntryTransformer(transformer) }
-        runCatching { unbindService(connection) }
         remoteService = null
-        setStatus(Status.IDLE)
-        Log.d(TAG, "Unbound, transformer unregistered")
-        return false
+        if (remoteConnectionBound || remoteBinding) {
+            runCatching { unbindService(connection) }
+        }
+        remoteBinding = false
+        remoteConnectionBound = false
     }
 }
 
@@ -200,8 +263,12 @@ class PluginActivity : Activity() {
     override fun onResume() {
         super.onResume()
         isActive = true
+        startService(Intent(this, MainService::class.java).setAction(ACTION_START_KEEPALIVE))
         PreferenceStore.addOnChangeListener(this, prefsListener)
         refreshDynamicState()
+        binding.connectionStatusText.postDelayed({
+            if (isActive) refreshConnectionStatus()
+        }, 600)
     }
 
     override fun onPause() {
