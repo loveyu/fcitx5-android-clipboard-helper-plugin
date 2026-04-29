@@ -9,6 +9,7 @@ object PreferenceStore {
     private const val KEY_URL = "post_url"
     private const val KEY_IGNORE_CERT = "ignore_cert"
     private const val KEY_LAST_CLIPBOARD = "last_clipboard"
+    private const val KEY_ENABLED = "plugin_enabled"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -22,6 +23,9 @@ object PreferenceStore {
     fun getLastClipboard(context: Context): String =
         prefs(context).getString(KEY_LAST_CLIPBOARD, "") ?: ""
 
+    fun getEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_ENABLED, true)
+
     fun save(context: Context, url: String, ignoreCert: Boolean) {
         prefs(context).edit()
             .putString(KEY_URL, url.trim())
@@ -29,9 +33,21 @@ object PreferenceStore {
             .apply()
     }
 
+    fun setEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply()
+    }
+
     fun saveLastClipboard(context: Context, text: String) {
         prefs(context).edit()
             .putString(KEY_LAST_CLIPBOARD, text)
             .apply()
+    }
+
+    fun addOnChangeListener(context: Context, listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        prefs(context).registerOnSharedPreferenceChangeListener(listener)
+    }
+
+    fun removeOnChangeListener(context: Context, listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        prefs(context).unregisterOnSharedPreferenceChangeListener(listener)
     }
 }

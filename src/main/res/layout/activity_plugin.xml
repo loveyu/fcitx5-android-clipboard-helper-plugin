@@ -33,7 +33,84 @@
             android:background="#E0E0E0"
             android:layout_marginBottom="20dp" />
 
-        <!-- 第一部分：POST 地址设置 -->
+        <!-- 功能开关 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/plugin_enabled_title"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#424242"
+            android:paddingBottom="12dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/plugin_enabled_label"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#212121" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/plugin_enabled_hint"
+                    android:textSize="12sp"
+                    android:textColor="#757575"
+                    android:paddingTop="2dp" />
+            </LinearLayout>
+
+            <Switch
+                android:id="@+id/enable_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginBottom="20dp" />
+
+        <!-- 连接状态 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/connection_status_title"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#424242"
+            android:paddingBottom="8dp" />
+
+        <TextView
+            android:id="@+id/connection_status_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="20dp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginBottom="20dp" />
+
+        <!-- POST 地址设置 -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -116,7 +193,7 @@
             android:background="#E0E0E0"
             android:layout_marginBottom="20dp" />
 
-        <!-- 第二部分：上次读取的剪贴板内容 -->
+        <!-- 上次读取的剪贴板内容 -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -136,7 +213,52 @@
             android:padding="12dp"
             android:maxLines="2"
             android:ellipsize="end"
-            android:layout_marginBottom="28dp" />
+            android:layout_marginBottom="24dp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginBottom="20dp" />
+
+        <!-- 调试日志 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/debug_log_title"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#424242" />
+
+            <Button
+                android:id="@+id/refresh_log_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/refresh_log"
+                android:textSize="12sp"
+                android:minHeight="0dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/log_output"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="#212121"
+            android:background="#F5F5F5"
+            android:padding="10dp"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="24dp" />
 
         <!-- 底部文案 -->
         <View

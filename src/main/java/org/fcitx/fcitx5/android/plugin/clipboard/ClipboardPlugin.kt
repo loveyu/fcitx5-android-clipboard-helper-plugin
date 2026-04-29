@@ -6,6 +6,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.SharedPreferences
+import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -52,12 +54,22 @@ class PluginApplication : Application() {
  */
 class MainService : android.app.Service() {
 
+    companion object {
+        /** True while the IFcitxRemoteService connection is active. */
+        @Volatile
+        var isConnectedToFcitx: Boolean = false
+            private set
+
+        internal fun setConnected(v: Boolean) { isConnectedToFcitx = v }
+    }
+
     private var remoteService: IFcitxRemoteService? = null
 
     private val transformer = object : IClipboardEntryTransformer.Stub() {
         override fun getPriority(): Int = 0
         override fun getDescription(): String = "ClipboardHelperPlugin"
         override fun transform(clipboardText: String): String {
+            if (!PreferenceStore.getEnabled(this@MainService)) return clipboardText
             Log.d(TAG, "Received clipboard text (${clipboardText.length} chars)")
             PreferenceStore.saveLastClipboard(this@MainService, clipboardText)
             HttpSender.enqueue(HttpSender.buildPayload(clipboardText))
@@ -69,11 +81,13 @@ class MainService : android.app.Service() {
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
             remoteService = IFcitxRemoteService.Stub.asInterface(service)
             remoteService?.registerClipboardEntryTransformer(transformer)
+            setConnected(true)
             Log.d(TAG, "Connected to fcitx5-android, transformer registered")
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
             remoteService = null
+            setConnected(false)
             Log.d(TAG, "Disconnected from fcitx5-android")
         }
     }
@@ -92,6 +106,7 @@ class MainService : android.app.Service() {
         runCatching { remoteService?.unregisterClipboardEntryTransformer(transformer) }
         runCatching { unbindService(connection) }
         remoteService = null
+        setConnected(false)
         Log.d(TAG, "Unbound, transformer unregistered")
         return false
     }
@@ -100,6 +115,22 @@ class MainService : android.app.Service() {
 class PluginActivity : Activity() {
 
     private lateinit var binding: ActivityPluginBinding
+
+    private val refreshHandler = Handler(Looper.getMainLooper())
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            refreshDynamicState()
+            refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS)
+        }
+    }
+
+    /** Guards background logcat threads from updating a paused/destroyed activity. */
+    @Volatile
+    private var isActive = false
+
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        refreshClipboardPreview()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,8 +143,10 @@ class PluginActivity : Activity() {
         binding.ignoreCertCheckbox.isChecked = PreferenceStore.getIgnoreCert(this)
         updateSslLayoutVisibility(binding.urlInput.text?.toString() ?: "")
 
-        val lastClip = PreferenceStore.getLastClipboard(this)
-        binding.clipboardPreview.text = lastClip.ifEmpty { getString(R.string.clipboard_empty) }
+        binding.enableSwitch.isChecked = PreferenceStore.getEnabled(this)
+        binding.enableSwitch.setOnCheckedChangeListener { _, checked ->
+            PreferenceStore.setEnabled(this, checked)
+        }
 
         binding.urlInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -134,12 +167,68 @@ class PluginActivity : Activity() {
             binding.currentUrlText.text = url
             Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
         }
+
+        binding.refreshLogButton.setOnClickListener { refreshLogcat() }
     }
 
     override fun onResume() {
         super.onResume()
+        isActive = true
+        PreferenceStore.addOnChangeListener(this, prefsListener)
+        refreshRunnable.run()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        isActive = false
+        PreferenceStore.removeOnChangeListener(this, prefsListener)
+        refreshHandler.removeCallbacks(refreshRunnable)
+    }
+
+    private fun refreshDynamicState() {
+        refreshClipboardPreview()
+        refreshConnectionStatus()
+        refreshLogcat()
+    }
+
+    private fun refreshClipboardPreview() {
         val lastClip = PreferenceStore.getLastClipboard(this)
         binding.clipboardPreview.text = lastClip.ifEmpty { getString(R.string.clipboard_empty) }
+    }
+
+    private fun refreshConnectionStatus() {
+        val connected = MainService.isConnectedToFcitx
+        binding.connectionStatusText.text = if (connected)
+            getString(R.string.connection_status_connected)
+        else
+            getString(R.string.connection_status_disconnected)
+        binding.connectionStatusText.setTextColor(
+            if (connected) Color.parseColor("#2E7D32") else Color.parseColor("#B71C1C")
+        )
+    }
+
+    private fun refreshLogcat() {
+        Thread {
+            val output = readLogcat()
+            if (isActive) {
+                runOnUiThread {
+                    binding.logOutput.text = output.ifEmpty { getString(R.string.log_empty) }
+                }
+            }
+        }.start()
+    }
+
+    private fun readLogcat(): String {
+        return try {
+            val process = Runtime.getRuntime().exec(
+                arrayOf("logcat", "-d", "-t", "3", "ClipboardPlugin:V", "ClipboardHttpSender:V", "*:S")
+            )
+            val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
+            process.destroy()
+            output
+        } catch (e: Exception) {
+            "读取日志失败: ${e.message}"
+        }
     }
 
     private fun updateSslLayoutVisibility(url: String) {
@@ -148,6 +237,10 @@ class PluginActivity : Activity() {
         if (!isHttps) {
             binding.ignoreCertCheckbox.isChecked = false
         }
+    }
+
+    companion object {
+        private const val REFRESH_INTERVAL_MS = 3000L
     }
 }
 

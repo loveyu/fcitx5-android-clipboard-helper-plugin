@@ -2,6 +2,12 @@
 <resources>
     <string name="app_name">小企鹅输入法（剪贴板助手插件）</string>
     <string name="app_subtitle">监听剪贴板变动并将内容转发至指定地址</string>
+    <string name="plugin_enabled_title">功能开关</string>
+    <string name="plugin_enabled_label">启用剪贴板转发</string>
+    <string name="plugin_enabled_hint">关闭后不记录日志，也不转发剪贴板内容</string>
+    <string name="connection_status_title">fcitx5-android 连接状态</string>
+    <string name="connection_status_connected">● 已连接</string>
+    <string name="connection_status_disconnected">● 未连接</string>
     <string name="settings_title">POST 地址设置</string>
     <string name="current_url_label">当前已保存的地址</string>
     <string name="url_not_set">（未设置）</string>
@@ -13,5 +19,8 @@
     <string name="url_empty_warning">地址不能为空</string>
     <string name="last_clipboard_title">上次读取的剪贴板内容</string>
     <string name="clipboard_empty">（暂无记录）</string>
+    <string name="debug_log_title">调试日志（最近 3 条）</string>
+    <string name="log_empty">（暂无日志）</string>
+    <string name="refresh_log">刷新</string>
     <string name="footer_text">插件通过 IClipboardEntryTransformer 接口被动接收剪贴板内容，无需额外权限</string>
 </resources>
