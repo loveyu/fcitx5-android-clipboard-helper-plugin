@@ -54,13 +54,29 @@ class PluginApplication : Application() {
  */
 class MainService : android.app.Service() {
 
+    enum class Status {
+        /** Plugin service has not yet been bound by fcitx5-android. */
+        IDLE,
+        /** fcitx5-android bound our service; waiting for the IPC back-connection. */
+        CONNECTING,
+        /** IPC connected and transformer successfully registered. */
+        CONNECTED,
+        /** IPC binding failed (permission denied or service not found). */
+        IPC_FAILED,
+        /** Was connected, but the IPC service dropped the connection. */
+        DISCONNECTED,
+    }
+
     companion object {
-        /** True while the IFcitxRemoteService connection is active. */
-        @Volatile
-        var isConnectedToFcitx: Boolean = false
+        @Volatile var status: Status = Status.IDLE
+            private set
+        @Volatile var failReason: String? = null
             private set
 
-        internal fun setConnected(v: Boolean) { isConnectedToFcitx = v }
+        internal fun setStatus(s: Status, reason: String? = null) {
+            status = s
+            failReason = reason
+        }
     }
 
     private var remoteService: IFcitxRemoteService? = null
@@ -81,30 +97,35 @@ class MainService : android.app.Service() {
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
             remoteService = IFcitxRemoteService.Stub.asInterface(service)
             remoteService?.registerClipboardEntryTransformer(transformer)
-            setConnected(true)
+            setStatus(Status.CONNECTED)
             Log.d(TAG, "Connected to fcitx5-android, transformer registered")
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
             remoteService = null
-            setConnected(false)
+            setStatus(Status.DISCONNECTED)
             Log.d(TAG, "Disconnected from fcitx5-android")
         }
     }
 
     override fun onBind(intent: Intent): IBinder {
         Log.d(TAG, "Bound by fcitx5-android")
-        val bound = try {
-            bindService(
+        try {
+            val bound = bindService(
                 Intent("$FCITX_APP_ID.IPC").setPackage(FCITX_APP_ID),
                 connection,
                 Context.BIND_AUTO_CREATE
             )
+            if (bound) {
+                setStatus(Status.CONNECTING)
+            } else {
+                setStatus(Status.IPC_FAILED, "bindService 返回 false，请确认 fcitx5-android 已安装并运行")
+                Log.w(TAG, "bindService returned false — IPC service unavailable or permission denied")
+            }
         } catch (e: SecurityException) {
+            setStatus(Status.IPC_FAILED, "IPC 权限被拒绝，请确认插件与 fcitx5-android 使用相同签名证书")
             Log.e(TAG, "IPC bind denied — signing certificate mismatch? ${e.message}")
-            false
         }
-        if (!bound) Log.w(TAG, "bindService returned false — IPC service unavailable or permission denied")
         return Messenger(Handler(Looper.getMainLooper())).binder
     }
 
@@ -112,7 +133,7 @@ class MainService : android.app.Service() {
         runCatching { remoteService?.unregisterClipboardEntryTransformer(transformer) }
         runCatching { unbindService(connection) }
         remoteService = null
-        setConnected(false)
+        setStatus(Status.IDLE)
         Log.d(TAG, "Unbound, transformer unregistered")
         return false
     }
@@ -194,14 +215,20 @@ class PluginActivity : Activity() {
     }
 
     private fun refreshConnectionStatus() {
-        val connected = MainService.isConnectedToFcitx
-        binding.connectionStatusText.text = if (connected)
-            getString(R.string.connection_status_connected)
-        else
-            getString(R.string.connection_status_disconnected)
-        binding.connectionStatusText.setTextColor(
-            if (connected) Color.parseColor("#2E7D32") else Color.parseColor("#B71C1C")
-        )
+        val (text, color) = when (MainService.status) {
+            MainService.Status.IDLE ->
+                "● 未绑定（fcitx5-android 尚未连接本插件，请在输入法设置中启用）" to "#757575"
+            MainService.Status.CONNECTING ->
+                "● 连接中…" to "#1565C0"
+            MainService.Status.CONNECTED ->
+                getString(R.string.connection_status_connected) to "#2E7D32"
+            MainService.Status.IPC_FAILED ->
+                "● 连接失败：${MainService.failReason}" to "#B71C1C"
+            MainService.Status.DISCONNECTED ->
+                getString(R.string.connection_status_disconnected) to "#E65100"
+        }
+        binding.connectionStatusText.text = text
+        binding.connectionStatusText.setTextColor(Color.parseColor(color))
     }
 
     private fun refreshLogcat() {
