@@ -2,15 +2,8 @@ package org.fcitx.fcitx5.android.plugin.clipboard
 
 import android.app.Activity
 import android.app.Application
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.Service
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -21,13 +14,11 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import org.fcitx.fcitx5.android.common.ipc.IClipboardEntryTransformer
 import org.fcitx.fcitx5.android.plugin.clipboard.databinding.ActivityPluginBinding
 
 private const val TAG = "ClipboardPlugin"
-private const val NOTIFICATION_CHANNEL_ID = "clipboard_service_channel"
-private const val FOREGROUND_NOTIFICATION_ID = 1
 
-/** Holds the application context so HttpSender can access preferences without a Context param. */
 object AppContextHolder {
     private var appContext: Context? = null
 
@@ -42,101 +33,57 @@ class PluginApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         AppContextHolder.init(this)
-        createNotificationChannel()
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
-                getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW
-            )
-            channel.setShowBadge(false)
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.createNotificationChannel(channel)
-        }
     }
 }
 
 /**
- * Bindable service required by the fcitx5-android plugin protocol.
- * Runs as a foreground service so it can read clipboard on Android 10+
- * where background clipboard access is restricted.
+ * Bound service required by the fcitx5-android plugin protocol.
+ * When fcitx5-android binds this service, we connect back to its IFcitxRemoteService
+ * and register an IClipboardEntryTransformer. fcitx5-android (as the IME) has full
+ * clipboard access and will invoke transform() on every clipboard change.
  */
-class MainService : Service() {
+class MainService : android.app.Service() {
 
-    private lateinit var clipboardManager: ClipboardManager
-    private val clipListener = ClipboardManager.OnPrimaryClipChangedListener {
-        onClipboardChanged()
+    private var fcitxConnection: FcitxRemoteConnection? = null
+
+    private val clipboardTransformer = object : IClipboardEntryTransformer.Stub() {
+        override fun getPriority(): Int = 0
+        override fun getDescription(): String = "clipboard-helper"
+        override fun transform(text: String): String {
+            handleClipboardText(text)
+            return text
+        }
     }
 
-    override fun onCreate() {
-        super.onCreate()
+    override fun onBind(intent: Intent): IBinder {
         AppContextHolder.init(this)
-        startForegroundCompat()
-        clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboardManager.addPrimaryClipChangedListener(clipListener)
-        Log.d(TAG, "MainService created, clipboard listener registered")
-    }
-
-    override fun onBind(intent: Intent): IBinder =
-        Messenger(Handler(Looper.getMainLooper())).binder
-
-    override fun onDestroy() {
-        super.onDestroy()
-        clipboardManager.removePrimaryClipChangedListener(clipListener)
-        stopForeground(true)
-        Log.d(TAG, "MainService destroyed, clipboard listener removed")
-    }
-
-    private fun startForegroundCompat() {
-        val notification = buildNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
-                FOREGROUND_NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
-            )
-        } else {
-            startForeground(FOREGROUND_NOTIFICATION_ID, notification)
+        fcitxConnection = bindFcitxRemoteService { remote ->
+            remote.registerClipboardEntryTransformer(clipboardTransformer)
+            Log.d(TAG, "Registered clipboard transformer with fcitx5-android")
         }
+        return Messenger(Handler(Looper.getMainLooper())).binder
     }
 
-    private fun buildNotification(): Notification {
-        val title = getString(R.string.service_notification_title)
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
-                .setContentTitle(title)
-                .setSmallIcon(android.R.drawable.ic_menu_send)
-                .setOngoing(true)
-                .build()
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-                .setContentTitle(title)
-                .setSmallIcon(android.R.drawable.ic_menu_send)
-                .setOngoing(true)
-                .build()
+    override fun onUnbind(intent: Intent?): Boolean {
+        runCatching {
+            fcitxConnection?.remoteService?.unregisterClipboardEntryTransformer(clipboardTransformer)
         }
+        fcitxConnection?.let { unbindService(it) }
+        fcitxConnection = null
+        Log.d(TAG, "Unregistered clipboard transformer")
+        return false
     }
 
-    private fun onClipboardChanged() {
-        try {
-            val clip = clipboardManager.primaryClip ?: return
-            if (clip.itemCount == 0) return
-            val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
-            if (text.isBlank()) return
-
-            val url = PreferenceStore.getUrl(this)
-            if (url.isBlank()) return
-
-            PreferenceStore.saveLastClipboard(this, text)
-            val payload = HttpSender.buildPayload(text)
-            HttpSender.enqueue(payload)
-        } catch (e: Exception) {
-            Log.w(TAG, "Clipboard read failed: ${e.javaClass.simpleName}: ${e.message}")
+    private fun handleClipboardText(text: String) {
+        if (text.isBlank()) return
+        val url = PreferenceStore.getUrl(this)
+        if (url.isBlank()) {
+            Log.d(TAG, "POST URL not configured, skipping")
+            return
         }
+        PreferenceStore.saveLastClipboard(this, text)
+        HttpSender.enqueue(HttpSender.buildPayload(text))
+        Log.d(TAG, "Clipboard text forwarded (${text.length} chars)")
     }
 }
 
@@ -187,5 +134,5 @@ class PluginActivity : Activity() {
             binding.ignoreCertCheckbox.isChecked = false
         }
     }
-
 }
+
