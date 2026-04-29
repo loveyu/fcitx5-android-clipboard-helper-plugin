@@ -12,6 +12,7 @@ android {
     buildFeatures {
         viewBinding = true
         aidl = true
+        buildConfig = true
     }
 
     defaultConfig {
@@ -65,8 +66,12 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            manifestPlaceholders["fcitxAppId"] = "org.fcitx.fcitx5.android.debug"
+            buildConfigField("String", "FCITX_APP_ID", "\"org.fcitx.fcitx5.android.debug\"")
         }
         release {
+            manifestPlaceholders["fcitxAppId"] = "org.fcitx.fcitx5.android"
+            buildConfigField("String", "FCITX_APP_ID", "\"org.fcitx.fcitx5.android\"")
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("release")
         }

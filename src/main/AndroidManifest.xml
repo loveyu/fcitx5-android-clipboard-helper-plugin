@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Required to bind to FcitxRemoteService (protectionLevel="signature"):
+         only works when both this plugin and fcitx5-android share the same signing cert,
+         i.e. both are debug builds signed with the standard Android debug keystore. -->
+    <uses-permission android:name="${fcitxAppId}.permission.IPC" />
 
     <application
         android:name="org.fcitx.fcitx5.android.plugin.clipboard.PluginApplication"
@@ -17,7 +21,7 @@
             android:name="org.fcitx.fcitx5.android.plugin.clipboard.PluginActivity"
             android:exported="true">
             <intent-filter>
-                <action android:name="org.fcitx.fcitx5.android.plugin.MANIFEST" />
+                <action android:name="${fcitxAppId}.plugin.MANIFEST" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
@@ -25,9 +29,9 @@
         <service
             android:name="org.fcitx.fcitx5.android.plugin.clipboard.MainService"
             android:exported="true"
-            android:permission="org.fcitx.fcitx5.android.permission.PLUGIN">
+            android:permission="${fcitxAppId}.permission.PLUGIN">
             <intent-filter>
-                <action android:name="org.fcitx.fcitx5.android.plugin.SERVICE" />
+                <action android:name="${fcitxAppId}.plugin.SERVICE" />
             </intent-filter>
         </service>
 

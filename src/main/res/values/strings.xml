@@ -13,5 +13,5 @@
     <string name="url_empty_warning">地址不能为空</string>
     <string name="last_clipboard_title">上次读取的剪贴板内容</string>
     <string name="clipboard_empty">（暂无记录）</string>
-    <string name="footer_text">仅在小企鹅输入法启动插件服务后生效</string>
+    <string name="footer_text">插件通过 IClipboardEntryTransformer 接口被动接收剪贴板内容，无需额外权限</string>
 </resources>
