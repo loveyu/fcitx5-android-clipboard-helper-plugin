@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <queries>
+        <package android:name="${fcitxAppId}" />
+    </queries>
+
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Required to bind to FcitxRemoteService (protectionLevel="signature"):
          only works when both this plugin and fcitx5-android share the same signing cert,
@@ -29,6 +33,7 @@
 
         <service
             android:name="org.fcitx.fcitx5.android.plugin.clipboard.MainService"
+            android:directBootAware="true"
             android:exported="true"
             android:permission="${fcitxAppId}.permission.PLUGIN">
             <intent-filter>

@@ -23,6 +23,11 @@ import org.fcitx.fcitx5.android.common.ipc.IFcitxRemoteService
 import org.fcitx.fcitx5.android.plugin.clipboard.databinding.ActivityPluginBinding
 
 private const val TAG = "ClipboardPlugin"
+private const val STATUS_COLOR_NEUTRAL = "#757575"
+private const val STATUS_COLOR_INFO = "#1565C0"
+private const val STATUS_COLOR_SUCCESS = "#2E7D32"
+private const val STATUS_COLOR_WARNING = "#E65100"
+private const val STATUS_COLOR_ERROR = "#B71C1C"
 
 /** Main application ID of fcitx5-android — injected per build type via BuildConfig. */
 private val FCITX_APP_ID get() = BuildConfig.FCITX_APP_ID
@@ -142,6 +147,8 @@ class MainService : android.app.Service() {
 class PluginActivity : Activity() {
 
     private lateinit var binding: ActivityPluginBinding
+    private var statusProbeGeneration = 0
+    private var statusProbeConnection: ServiceConnection? = null
 
     /** Guards background logcat threads from updating a paused/destroyed activity. */
     @Volatile
@@ -200,6 +207,7 @@ class PluginActivity : Activity() {
     override fun onPause() {
         super.onPause()
         isActive = false
+        cancelStatusProbe()
         PreferenceStore.removeOnChangeListener(this, prefsListener)
     }
 
@@ -215,18 +223,119 @@ class PluginActivity : Activity() {
     }
 
     private fun refreshConnectionStatus() {
-        val (text, color) = when (MainService.status) {
-            MainService.Status.IDLE ->
-                "● 未绑定（fcitx5-android 尚未连接本插件，请在输入法设置中启用）" to "#757575"
-            MainService.Status.CONNECTING ->
-                "● 连接中…" to "#1565C0"
-            MainService.Status.CONNECTED ->
-                getString(R.string.connection_status_connected) to "#2E7D32"
-            MainService.Status.IPC_FAILED ->
-                "● 连接失败：${MainService.failReason}" to "#B71C1C"
-            MainService.Status.DISCONNECTED ->
-                getString(R.string.connection_status_disconnected) to "#E65100"
+        when (MainService.status) {
+            MainService.Status.IDLE -> probeIdleConnectionStatus()
+            MainService.Status.CONNECTING -> {
+                cancelStatusProbe()
+                renderConnectionStatus(
+                    getString(R.string.connection_status_connecting),
+                    STATUS_COLOR_INFO
+                )
+            }
+            MainService.Status.CONNECTED -> {
+                cancelStatusProbe()
+                renderConnectionStatus(
+                    getString(R.string.connection_status_connected),
+                    STATUS_COLOR_SUCCESS
+                )
+            }
+            MainService.Status.IPC_FAILED -> {
+                cancelStatusProbe()
+                renderConnectionStatus(
+                    getString(
+                        R.string.connection_status_failed,
+                        MainService.failReason ?: getString(R.string.connection_status_unknown_reason)
+                    ),
+                    STATUS_COLOR_ERROR
+                )
+            }
+            MainService.Status.DISCONNECTED -> {
+                cancelStatusProbe()
+                renderConnectionStatus(
+                    getString(R.string.connection_status_disconnected),
+                    STATUS_COLOR_WARNING
+                )
+            }
         }
+    }
+
+    private fun probeIdleConnectionStatus() {
+        cancelStatusProbe()
+        renderConnectionStatus(getString(R.string.connection_status_checking), STATUS_COLOR_NEUTRAL)
+
+        val generation = ++statusProbeGeneration
+        val connection = object : ServiceConnection {
+            var bound = false
+
+            override fun onServiceConnected(name: ComponentName, service: IBinder) {
+                val state = try {
+                    val loadedPlugins = IFcitxRemoteService.Stub.asInterface(service).getLoadedPlugins()
+                    if (loadedPlugins.containsKey(packageName)) {
+                        getString(R.string.connection_status_loaded_waiting) to STATUS_COLOR_NEUTRAL
+                    } else {
+                        getString(R.string.connection_status_not_loaded) to STATUS_COLOR_WARNING
+                    }
+                } catch (e: SecurityException) {
+                    getString(R.string.connection_status_permission_denied) to STATUS_COLOR_ERROR
+                } catch (e: Exception) {
+                    getString(
+                        R.string.connection_status_failed,
+                        e.message ?: e.javaClass.simpleName
+                    ) to STATUS_COLOR_ERROR
+                }
+                finish(state)
+            }
+
+            override fun onServiceDisconnected(name: ComponentName) {
+                finish(
+                    getString(R.string.connection_status_remote_unavailable) to STATUS_COLOR_WARNING
+                )
+            }
+
+            private fun finish(state: Pair<String, String>) {
+                if (statusProbeConnection === this) {
+                    statusProbeConnection = null
+                }
+                if (bound) {
+                    runCatching { unbindService(this) }
+                    bound = false
+                }
+                if (isActive && statusProbeGeneration == generation && MainService.status == MainService.Status.IDLE) {
+                    renderConnectionStatus(state.first, state.second)
+                }
+            }
+        }
+
+        statusProbeConnection = connection
+        try {
+            connection.bound = bindService(
+                Intent("$FCITX_APP_ID.IPC").setPackage(FCITX_APP_ID),
+                connection,
+                Context.BIND_AUTO_CREATE
+            )
+            if (!connection.bound) {
+                statusProbeConnection = null
+                renderConnectionStatus(
+                    getString(R.string.connection_status_remote_unavailable),
+                    STATUS_COLOR_WARNING
+                )
+            }
+        } catch (e: SecurityException) {
+            statusProbeConnection = null
+            renderConnectionStatus(
+                getString(R.string.connection_status_permission_denied),
+                STATUS_COLOR_ERROR
+            )
+        }
+    }
+
+    private fun cancelStatusProbe() {
+        statusProbeGeneration++
+        statusProbeConnection?.also { runCatching { unbindService(it) } }
+        statusProbeConnection = null
+    }
+
+    private fun renderConnectionStatus(text: String, color: String) {
         binding.connectionStatusText.text = text
         binding.connectionStatusText.setTextColor(Color.parseColor(color))
     }
@@ -263,4 +372,3 @@ class PluginActivity : Activity() {
         }
     }
 }
-

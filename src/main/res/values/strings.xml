@@ -6,8 +6,16 @@
     <string name="plugin_enabled_label">启用剪贴板转发</string>
     <string name="plugin_enabled_hint">关闭后不记录日志，也不转发剪贴板内容</string>
     <string name="connection_status_title">fcitx5-android 连接状态</string>
+    <string name="connection_status_checking">● 正在检测连接状态…</string>
+    <string name="connection_status_connecting">● 连接中…</string>
     <string name="connection_status_connected">● 已连接</string>
     <string name="connection_status_disconnected">● 已断开连接</string>
+    <string name="connection_status_loaded_waiting">● 插件已加载，等待输入法启动后绑定服务</string>
+    <string name="connection_status_not_loaded">● 插件尚未被 fcitx5-android 加载，请在插件管理中确认显示为“已加载”</string>
+    <string name="connection_status_remote_unavailable">● 未检测到 fcitx5-android 服务，请先切换到该输入法并启动一次</string>
+    <string name="connection_status_permission_denied">● IPC 权限被拒绝，请确认插件与 fcitx5-android 使用相同签名证书</string>
+    <string name="connection_status_failed">● 连接失败：%1$s</string>
+    <string name="connection_status_unknown_reason">未知原因</string>
     <string name="settings_title">POST 地址设置</string>
     <string name="current_url_label">当前已保存的地址</string>
     <string name="url_not_set">（未设置）</string>
