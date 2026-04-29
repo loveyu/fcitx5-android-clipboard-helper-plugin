@@ -1,8 +1,8 @@
 import java.util.Properties
 
 plugins {
-    id("com.android.application") version "8.11.1"
-    id("org.jetbrains.kotlin.android") version "2.2.0"
+    id("com.android.application") version "9.2.0"
+    id("org.jetbrains.kotlin.android") version "2.2.10"
 }
 
 android {
